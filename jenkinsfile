@@ -62,7 +62,7 @@ pipeline {
 
                         git add k8/deployment.yml
                         git diff --cached --quiet || git commit -m "Update image tag to ${IMAGE_TAG}"
-                        git push https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/riteshtorne007/Multi-Branch.git main
+                        git push https://$GIT_USERNAME:$GIT_TOKEN@github.com/riteshtorne150/Multi-Branch.git main
                         """
                     }
                 }
