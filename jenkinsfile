@@ -24,20 +24,21 @@ pipeline {
             when { branch 'main' }
             steps {
                 script {
-                    IMAGE_TAG = "build-${BUILD_NUMBER}"
+                    // IMPORTANT: store in env so shell can read it
+                    env.IMAGE_TAG = "build-${BUILD_NUMBER}"
+                }
 
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh '''
-                        set -e
-                        docker build -t $IMAGE_NAME:$IMAGE_TAG .
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $IMAGE_NAME:$IMAGE_TAG
-                        '''
-                    }
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                    set -e
+                    docker build -t $IMAGE_NAME:$IMAGE_TAG .
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    docker push $IMAGE_NAME:$IMAGE_TAG
+                    '''
                 }
             }
         }
@@ -45,28 +46,26 @@ pipeline {
         stage('Update K8 Manifest') {
             when { branch 'main' }
             steps {
-                script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'github-creds',
-                        usernameVariable: 'GIT_USERNAME',
-                        passwordVariable: 'GIT_TOKEN'
-                    )]) {
-                        sh '''
-                        set -e
-                        git config user.name "$GIT_USER"
-                        git config user.email "$GIT_EMAIL"
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-creds',
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh '''
+                    set -e
+                    git config user.name "$GIT_USER"
+                    git config user.email "$GIT_EMAIL"
 
-                        git fetch origin
-                        git checkout main
-                        git reset --hard origin/main
+                    git fetch origin
+                    git checkout main
+                    git reset --hard origin/main
 
-                        sed -i "s|image:.*|image: $IMAGE_NAME:$IMAGE_TAG|" k8/deployment.yml
+                    sed -i "s|image:.*|image: $IMAGE_NAME:$IMAGE_TAG|" k8/deployment.yml
 
-                        git add k8/deployment.yml
-                        git diff --cached --quiet || git commit -m "Update image tag to $IMAGE_TAG"
-                        git push https://$GIT_USERNAME:$GIT_TOKEN@github.com/riteshtorne150/Multi-Branch.git main
-                        '''
-                    }
+                    git add k8/deployment.yml
+                    git diff --cached --quiet || git commit -m "Update image tag to $IMAGE_TAG"
+                    git push https://$GIT_USERNAME:$GIT_TOKEN@github.com/riteshtorne150/Multi-Branch.git main
+                    '''
                 }
             }
         }
