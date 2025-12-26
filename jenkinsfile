@@ -1,8 +1,9 @@
-ipeline {
+pipeline {
     agent any
 
     options {
         disableConcurrentBuilds()
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     environment {
@@ -23,7 +24,7 @@ ipeline {
             when { branch 'main' }
             steps {
                 script {
-                    env.IMAGE_TAG = "build-${BUILD_NUMBER}"
+                    IMAGE_TAG = "build-${BUILD_NUMBER}"
 
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-creds',
@@ -36,7 +37,6 @@ ipeline {
                         docker push ${IMAGE_NAME}:${IMAGE_TAG}
                         """
                     }
-		    env.IMAGE_TAG = IMAGE_TAG
                 }
             }
         }
@@ -52,17 +52,16 @@ ipeline {
                     )]) {
                         sh """
                         set -e
-                        git config user.name "$GIT_USER"
-                        git config user.email "$GIT_EMAIL"
+                        git config user.name "${GIT_USER}"
+                        git config user.email "${GIT_EMAIL}"
 
-                        git fetch origin
                         git checkout main
-                        git reset --hard origin/main
+                        git pull origin main
 
                         sed -i "s|image:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" k8s/deployment.yml
 
                         git add k8s/deployment.yml
-                        git diff --cached --quiet || git commit -m "Updated image to ${IMAGE_TAG}"
+                        git diff --cached --quiet || git commit -m "Update image tag to ${IMAGE_TAG}"
                         git push https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/riteshtorne007/Multi-Branch.git main
                         """
                     }
@@ -70,4 +69,11 @@ ipeline {
             }
         }
     }
+
+    post {
+        always {
+            sh 'docker system prune -f'
+        }
+    }
 }
+
