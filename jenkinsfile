@@ -31,11 +31,12 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        sh """
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        sh '''
+                        set -e
+                        docker build -t '"$IMAGE_NAME:$IMAGE_TAG"' .
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        """
+                        docker push '"$IMAGE_NAME:$IMAGE_TAG"'
+                        '''
                     }
                 }
             }
@@ -50,20 +51,25 @@ pipeline {
                         usernameVariable: 'GIT_USERNAME',
                         passwordVariable: 'GIT_TOKEN'
                     )]) {
-                        sh """
+                        sh '''
                         set -e
-                        git config user.name "${GIT_USER}"
-                        git config user.email "${GIT_EMAIL}"
+                        git config user.name "$GIT_USER"
+                        git config user.email "$GIT_EMAIL"
 
+                        # Always align workspace with remote (CI best practice)
+                        git fetch origin
                         git checkout main
-                        git pull origin main
+                        git reset --hard origin/main
 
-                        sed -i "s|image:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" k8/deployment.yml
+                        # Update image tag in Kubernetes manifest
+                        sed -i "s|image:.*|image: '"$IMAGE_NAME:$IMAGE_TAG"'|" k8/deployment.yml
 
                         git add k8/deployment.yml
-                        git diff --cached --quiet || git commit -m "Update image tag to ${IMAGE_TAG}"
+                        git diff --cached --quiet || git commit -m "Update image tag to '"$IMAGE_TAG"'"
+
+                        # Push back to correct GitHub repository
                         git push https://$GIT_USERNAME:$GIT_TOKEN@github.com/riteshtorne150/Multi-Branch.git main
-                        """
+                        '''
                     }
                 }
             }
