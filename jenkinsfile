@@ -33,9 +33,9 @@ pipeline {
                     )]) {
                         sh '''
                         set -e
-                        docker build -t '"$IMAGE_NAME:$IMAGE_TAG"' .
+                        docker build -t $IMAGE_NAME:$IMAGE_TAG .
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push '"$IMAGE_NAME:$IMAGE_TAG"'
+                        docker push $IMAGE_NAME:$IMAGE_TAG
                         '''
                     }
                 }
@@ -56,18 +56,14 @@ pipeline {
                         git config user.name "$GIT_USER"
                         git config user.email "$GIT_EMAIL"
 
-                        # Always align workspace with remote (CI best practice)
                         git fetch origin
                         git checkout main
                         git reset --hard origin/main
 
-                        # Update image tag in Kubernetes manifest
-                        sed -i "s|image:.*|image: '"$IMAGE_NAME:$IMAGE_TAG"'|" k8/deployment.yml
+                        sed -i "s|image:.*|image: $IMAGE_NAME:$IMAGE_TAG|" k8/deployment.yml
 
                         git add k8/deployment.yml
-                        git diff --cached --quiet || git commit -m "Update image tag to '"$IMAGE_TAG"'"
-
-                        # Push back to correct GitHub repository
+                        git diff --cached --quiet || git commit -m "Update image tag to $IMAGE_TAG"
                         git push https://$GIT_USERNAME:$GIT_TOKEN@github.com/riteshtorne150/Multi-Branch.git main
                         '''
                     }
@@ -82,4 +78,3 @@ pipeline {
         }
     }
 }
-
